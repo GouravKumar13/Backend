@@ -48,10 +48,11 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true })
 
 //we should not use arrow functions here as arrow functions do not have context to this
-userSchema.pre("save", async function (req, res, next) {
+userSchema.pre("save", async function (next) {
     //negative check
-    if (!this.isModified("password")) return next()
-    this.password = await bcrypt.hash(this.password, 10)
+    if (this.isModified("password")) {
+        this.password = await bcrypt.hash(this.password, 10)
+    }
     next()
 
 })

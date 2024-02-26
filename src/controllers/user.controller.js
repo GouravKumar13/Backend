@@ -17,11 +17,13 @@ const registerUser = asyncHandler(async (req, res) => {
     // return response
 
     const { userName, email, fullName, password } = req.body
-    if ([userName, email, fullName, password].some((value) => { return value === "" })) {
+    if ([userName, email, fullName, password].some((value) => { return value?.trim() === "" })) {
         throw new apiError(400, "please check your input", [userName, email, fullName, password],)
     }
+    console.log("body", req.body)
+    console.log("files", req.files)
     //find email or username in the db
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [
             { userName },
             { email }
@@ -31,8 +33,8 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new apiError(409, "UserName or email is already in use", [userName, email])
     }
     console.log(req.files)
-    const avatarLocalPath = req.files?.avatar[0]?.path
-    const coverImageLocalPath = req.files?.cover[0]?.path
+    const avatarLocalPath = req?.files?.avatar ? req?.files?.avatar[0]?.path : null
+    const coverImageLocalPath = req?.files?.coverImage ? req?.files?.coverImage[0]?.path : null
     if (!avatarLocalPath) {
         throw new apiError(400, "avatar file is required")
 
@@ -53,7 +55,8 @@ const registerUser = asyncHandler(async (req, res) => {
         email,
         password
     })
-    const createdUser = User.findById(user._id).select(
+    //removing password and refresh token from the user and sending it as response
+    const createdUser = await User.findById(user._id).select(
         "-password -refreshToken"
     )
     if (!createdUser) {

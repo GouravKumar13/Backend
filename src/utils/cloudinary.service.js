@@ -10,13 +10,15 @@ cloudinary.config({
 
 const uploadFileToCloudinary = async (localFilePath) => {
     try {
+
         if (!localFilePath) return "Could not find the file"
         const response = await cloudinary.uploader.upload(localFilePath, {
             resource_type: "auto",
         })
         //file has been uploaded successfully
-        console.log("file uploaded successfully", response)
+
         //should only return the url and not the whole response object
+        fs.unlinkSync(localFilePath) // to remove the files from the temp folder
         return response
 
     } catch (error) {
