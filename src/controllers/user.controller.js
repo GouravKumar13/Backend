@@ -123,7 +123,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
 
 
-    res
+    return res
         .status(200)
         .cookie("accessToken", accessToken, options)
         .cookie("refreshToken", refreshToken, options)
@@ -176,7 +176,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         const { accessToken, newRefreshToken } = await generateAccessAndRefereshTokens(user._id)
 
-        res
+        return res
             .status(200)
             .cookie("accessToken", accessToken, options)
             .cookie("refreshToken", newRefreshToken, option)
@@ -188,4 +188,73 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken }
+const updateUserPassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body
+    const user = await User.findById(req.user?._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+    if (!isPasswordCorrect) {
+        throw new apiError(400, "invalid old password")
+    }
+    user.password = newPassword
+    await user.save({ validateBeforeSave: false })
+
+    return res.status(200)
+        .json(new apiResponse(200, {}, "Password updated successfully"))
+})
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+    return res.status(200).json(new apiResponse(200, req.user, "current user fetched successfully"))
+})
+
+
+// for updating user images like avatar or coverImage user a separate controller so that is the user only changes the image and not the text fields the text are not send again
+const updateUserDetails = asyncHandler(async (req, res) => {
+    // also add changing username and add limiting so that user can change user name only 5 time  only
+    const { fullName, email } = req.body
+    const user = await User.findById(req.user?._id)
+    if (fullName) user.fullName = fullName
+    if (email) user.email = email
+    const newUser = await user.save({ validateBeforeSave: false })
+    // let user
+    // if (fullName || email) {
+
+    //     user = await User.findByIdAndUpdate(req.user?._id, { $set: { fullName, email } }, { new: true }).select("-password")
+    // }
+
+    return res
+        .status(200)
+        .json(new apiResponse(200, { user: newUser }, "account updated successfully"))
+
+
+
+})
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+    const avatarLocalPath = req.file ? req.files?.path : null
+    if (avatarLocalPath) {
+        throw new apiError(400, "Avatar image not provided")
+    }
+
+    const avatar = await uploadFileToCloudinary(avatarLocalPath)
+    if (!avatar.url) {
+        throw new apiError(400, "Error while uploading avatar")
+    }
+    const user = await User.findByIdAndUpdate(req.user?._id, { $set: { avatar: avatar.url } }, { new: true }).select("-password")
+    return res.status(200).json(new apiResponse(200, user, "Avatar updated successfully"))
+
+})
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+    const coverImageLocalPath = req.file ? req.files?.path : null
+    if (coverImageLocalPath) {
+        throw new apiError(400, "cover image not provided")
+    }
+
+    const coverImage = await uploadFileToCloudinary(coverImageLocalPath)
+    if (!coverImage.url) {
+        throw new apiError(400, "Error while uploading cover Image")
+    }
+    const user = await User.findByIdAndUpdate(req.user?._id, { $set: { coverImage: coverImage.url } }, { new: true }).select("-password")
+    return res.status(200).json(new apiResponse(200, user, "Cover Image updated successfully"))
+
+})
+export { registerUser, loginUser, logoutUser, refreshAccessToken, updateUserPassword, getCurrentUser, updateUserAvatar, updateUserDetails, updateUserCoverImage }
