@@ -158,7 +158,8 @@ const logoutUser = asyncHandler(async (req, res) => {
 })
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-    const incomingRefreshToken = req.cookie.refreshToken || req.body.refreshToken
+
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body.refreshToken
     if (!incomingRefreshToken) {
         throw new apiError(401, "unAuthorized request")
     }
@@ -181,7 +182,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         return res
             .status(200)
             .cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", newRefreshToken, option)
+            .cookie("refreshToken", newRefreshToken, options)
             .json(new apiResponse(200, { accessToken: accessToken, refreshToken: newRefreshToken }, "Access Token Refreshed"))
 
     } catch (error) {
@@ -232,10 +233,12 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 })
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-    const avatarLocalPath = req.file ? req.files?.path : null
-    if (avatarLocalPath) {
+    console.log(req.file.path)
+    const avatarLocalPath = req.file?.path
+    if (!avatarLocalPath) {
         throw new apiError(400, "Avatar image not provided")
     }
+    console.log("avatar local path :", avatarLocalPath)
 
     const avatar = await uploadFileToCloudinary(avatarLocalPath)
     if (!avatar.url) {
@@ -246,8 +249,8 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
 })
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-    const coverImageLocalPath = req.file ? req.files?.path : null
-    if (coverImageLocalPath) {
+    const coverImageLocalPath = req.file?.path
+    if (!coverImageLocalPath) {
         throw new apiError(400, "cover image not provided")
     }
 
@@ -287,6 +290,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
                 as: "SubscribedTo"
             }
         },
+
         {
             $addFields: {
                 subscribersCount: { $size: "$Subscribers" },
