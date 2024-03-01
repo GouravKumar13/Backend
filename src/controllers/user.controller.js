@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
 import { uploadFileToCloudinary } from "../utils/cloudinary.service.js";
 import { apiResponse } from "../utils/ApiResponse.js";
+import { response } from "express";
 
 
 const options = {
@@ -257,4 +258,70 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, user, "Cover Image updated successfully"))
 
 })
-export { registerUser, loginUser, logoutUser, refreshAccessToken, updateUserPassword, getCurrentUser, updateUserAvatar, updateUserDetails, updateUserCoverImage }
+
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    const { userName } = req.params
+    if (!userName?.trim()) {
+        throw new apiError(400, "userName is missing")
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: { userName: userName?.toLowerCase() }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "Subscribers"
+            }
+
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "SubscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: { $size: "$Subscribers" },
+                subscribersCount: { $size: "$SubscribedTo" },
+                isSubscribed: {
+                    $cond: {
+                        if: { $in: [req.user?._id, "$Subscribers.subscribers"] },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+
+        },
+
+        {
+            $project: {
+                userName: 1,
+                fullName: 1,
+                avatar: 1,
+                coverImages: 1,
+                subscribersCount: 1,
+                subscribersCount: 1,
+                isSubscribed: 1
+
+            }
+        }
+
+    ])
+    console.log(channel)
+
+    if (!channel) {
+        throw new apiError(404, "Channel not found")
+    }
+
+    return res.status(200).json(new apiResponse(200, channel, "channel details fetched successfully"))
+
+})
+export { registerUser, loginUser, logoutUser, refreshAccessToken, updateUserPassword, getCurrentUser, updateUserAvatar, updateUserDetails, updateUserCoverImage, getUserChannelProfile }
