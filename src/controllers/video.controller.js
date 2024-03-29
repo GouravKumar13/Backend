@@ -1,8 +1,8 @@
 import { Video } from "../models/video.model.js";
-import { ApiError } from "../utils/ApiError.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
+import { apiError } from "../utils/ApiError.js";
+import { apiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadFileToCloudinary } from "../utils/cloudinary.service.js";
 import { User } from "../models/user.model.js";
 import mongoose from "mongoose";
 
@@ -20,31 +20,31 @@ const publishVideo = asyncHandler(async (req, res) => {
     console.log(title);
 
     if (!title) {
-        throw new ApiError(400, "title for a video is req")
+        throw new apiError(400, "title for a video is req")
     }
 
 
     // get video and thumbnail
     const videoLocalPath = req.files?.videoFile[0].path
     if (!videoLocalPath) {
-        throw new ApiError(400, "No video found")
+        throw new apiError(400, "No video found")
     }
 
     const thumbnailLocalPath = req.files?.thumbnail[0].path
     if (!thumbnailLocalPath) {
-        throw new ApiError(400, "No thumbnail found")
+        throw new apiError(400, "No thumbnail found")
     }
 
 
     //upload on cloudinary
     const videoFile = await uploadOnCloudinary(videoLocalPath)
     if (!videoFile) {
-        throw new ApiError(400, "video not uploaded on cloudinary")
+        throw new apiError(400, "video not uploaded on cloudinary")
     }
 
     const thumbnail = await uploadOnCloudinary(thumbnailLocalPath)
     if (!thumbnail) {
-        throw new ApiError(400, "thumbnail not uploaded on cloudinary")
+        throw new apiError(400, "thumbnail not uploaded on cloudinary")
     }
 
     console.log("Video and thumbnail uploaded on cloudinary");
@@ -67,7 +67,7 @@ const publishVideo = asyncHandler(async (req, res) => {
     return (
         res
             .status(200)
-            .json(new ApiResponse(200, video, "Video uploaded successfully"))
+            .json(new apiResponse(200, video, "Video uploaded successfully"))
     )
 
 })
@@ -84,7 +84,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const limitOfComments = parseInt(limit);
 
     if (!user) {
-        throw new ApiError(400, "User is required.");
+        throw new apiError(400, "User is required.");
     }
 
     const skip = (pageNumber - 1) * limitOfComments;
@@ -138,11 +138,11 @@ const getAllVideos = asyncHandler(async (req, res) => {
     );
 
     if (videos.length === 0) {
-        return res.status(200).json(new ApiResponse(200, "No videos available."));
+        return res.status(200).json(new apiResponse(200, "No videos available."));
     }
 
     // Return the videos
-    res.status(200).json(new ApiResponse(200, videos, "Videos fetched successfully"));
+    res.status(200).json(new apiResponse(200, videos, "Videos fetched successfully"));
 });
 
 
@@ -151,22 +151,22 @@ const getVideoById = asyncHandler(async (req, res) => {
     try {
         const { videoId } = req.params
         if (!videoId) {
-            throw new ApiError(400, "videoId cant be fetched from params")
+            throw new apiError(400, "videoId cant be fetched from params")
         }
 
         const video = await Video.findById(videoId)
         if (!video) {
-            throw new ApiError(400, "Cant find video")
+            throw new apiError(400, "Cant find video")
         }
 
         return (
             res
                 .status(200)
-                .json(new ApiResponse(200, video, "video fetched successfully"))
+                .json(new apiResponse(200, video, "video fetched successfully"))
         )
 
     } catch (error) {
-        throw new ApiError(400, `Internal Error ${error}`)
+        throw new apiError(400, `Internal Error ${error}`)
     }
 })
 
@@ -174,33 +174,33 @@ const getVideoById = asyncHandler(async (req, res) => {
 const updateVideoDetails = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     if (!videoId) {
-        throw new ApiError(400, "videoId cant be fetched from params")
+        throw new apiError(400, "videoId cant be fetched from params")
     }
 
     // Only the owner can update the video details
     const video = await Video.findById(videoId)
     if (!video) {
-        throw new ApiError(404, "Video not found")
+        throw new apiError(404, "Video not found")
     }
 
     const user = await User.findOne({
         refreshToken: req.cookies.refreshToken,
     })
     if (!user) {
-        throw new ApiError(404, "User not found")
+        throw new apiError(404, "User not found")
     }
 
     if (!video.owner.equals(user._id.toString())) {
-        throw new ApiError(403, "Only the owner can update video details")
+        throw new apiError(403, "Only the owner can update video details")
     }
 
     // Update title and description
     const { title, description } = req.body
     if (!title) {
-        throw new ApiError(400, "Title is required")
+        throw new apiError(400, "Title is required")
     }
     if (!description) {
-        throw new ApiError(400, "Description is required")
+        throw new apiError(400, "Description is required")
     }
     video.title = title
     video.description = description
@@ -208,11 +208,11 @@ const updateVideoDetails = asyncHandler(async (req, res) => {
     // Update thumbnail
     const newThumbnailLocalFilePath = req.file?.path
     if (!newThumbnailLocalFilePath) {
-        throw new ApiError(400, "Thumbnail is not uploaded")
+        throw new apiError(400, "Thumbnail is not uploaded")
     }
     const thumbnail = await uploadOnCloudinary(newThumbnailLocalFilePath)
     if (!thumbnail) {
-        throw new ApiError(500, "Failed to upload thumbnail to Cloudinary")
+        throw new apiError(500, "Failed to upload thumbnail to Cloudinary")
     }
     video.thumbnail = thumbnail.url
 
@@ -222,14 +222,14 @@ const updateVideoDetails = asyncHandler(async (req, res) => {
     // Return the response
     return res
         .status(200)
-        .json(new ApiResponse(200, video, "Video details updated successfully"))
+        .json(new apiResponse(200, video, "Video details updated successfully"))
 })
 
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     if (!videoId) {
-        throw new ApiError(400, "videoId cant be fetched from params")
+        throw new apiError(400, "videoId cant be fetched from params")
     }
 
     const video = await Video.findById(videoId)
@@ -237,7 +237,7 @@ const deleteVideo = asyncHandler(async (req, res) => {
         refreshToken: req.cookies.refreshToken,
     })
     if (!user) {
-        throw new ApiError(404, "User not found")
+        throw new apiError(404, "User not found")
     }
 
 
@@ -247,10 +247,10 @@ const deleteVideo = asyncHandler(async (req, res) => {
         return (
             res
                 .status(200)
-                .json(new ApiResponse(200, {}, "Video deleted successfully"))
+                .json(new apiResponse(200, {}, "Video deleted successfully"))
         )
     } else {
-        throw new ApiError(401, "Only user can delete the video")
+        throw new apiError(401, "Only user can delete the video")
     }
 
 
@@ -260,12 +260,12 @@ const deleteVideo = asyncHandler(async (req, res) => {
 const togglePublishStatus = asyncHandler(async (req, res) => {
     const { videoId } = req.params
     if (!videoId) {
-        throw new ApiError(400, "videoId cant be fetched from params")
+        throw new apiError(400, "videoId cant be fetched from params")
     }
 
     const video = await Video.findById(videoId);
     if (!video) {
-        throw new ApiError(404, "Video not found");
+        throw new apiError(404, "Video not found");
     }
     video.isPublished = !video.isPublished;
 
@@ -274,7 +274,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     return (
         res
             .status(200)
-            .json(new ApiResponse(200, video.isPublished, "Video publish toggled successfully"))
+            .json(new apiResponse(200, video.isPublished, "Video publish toggled successfully"))
     )
 })
 
